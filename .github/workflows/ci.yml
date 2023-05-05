@@ -2,7 +2,7 @@ name: ci build
 
 on:                                                                             
   push:
-    branches: [ master ]
+    branches: [ holmes1412-patch-1 ]
   pull_request:
     branches: [ master ]
 
