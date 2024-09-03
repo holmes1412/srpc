@@ -248,11 +248,30 @@ static inline void __set_host_by_uri(const ParsedURI *uri, bool is_ssl,
 	}
 }
 
+static inline bool __set_request_uri_by_uri(const ParsedURI *uri,
+											std::string& request_uri)
+{
+	if (uri->path && uri->path[0])
+		request_uri = uri->path;
+	else
+		return false;
+
+	if (uri->query && uri->query[0])
+	{
+		request_uri += "?";
+		request_uri += uri->query;
+	}
+
+	return true;
+}
+
 template<>
 inline void RPCClient<RPCTYPESRPCHttp>::task_init(COMPLEXTASK *task) const
 {
-	__task_init(task);
 	std::string header_host;
+	std::string request_uri;
+
+	__task_init(task);
 
 	if (this->has_addr_info)
 		header_host += this->params.host + ":" + std::to_string(this->params.port);
@@ -260,13 +279,17 @@ inline void RPCClient<RPCTYPESRPCHttp>::task_init(COMPLEXTASK *task) const
 		__set_host_by_uri(task->get_current_uri(), this->params.is_ssl, header_host);
 
 	task->get_req()->set_header_pair("Host", header_host.c_str());
+
+	if (__set_request_uri_by_uri(task->get_current_uri(), request_uri))
+		task->get_req()->set_request_uri(request_uri);
 }
 
 template<>
 inline void RPCClient<RPCTYPEThriftHttp>::task_init(COMPLEXTASK *task) const
 {
-	__task_init(task);
 	std::string header_host;
+
+	__task_init(task);
 
 	if (this->has_addr_info)
 		header_host += this->params.host + ":" + std::to_string(this->params.port);

@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <workflow/WFServer.h>
 #include <workflow/WFHttpServer.h>
+#include <workflow/json_parser.h>
 #include "rpc_types.h"
 #include "rpc_service.h"
 #include "rpc_options.h"
@@ -49,6 +50,7 @@ public:
 	RPCServer(const struct RPCServerParams *params);
 
 	int add_service(RPCService *service);
+	int add_service(RPCService *service, const char *trans_coding);
 	const RPCService* find_service(const std::string& name) const;
 	void add_filter(RPCFilter *filter);
 
@@ -60,8 +62,12 @@ protected:
 	void server_process(NETWORKTASK *task) const;
 
 private:
+	void server_process_internal(NETWORKTASK *task) const;
+
+private:
 	std::mutex mutex;
 	std::map<std::string, RPCService *> service_map;
+	std::map<std::string, std::string> path_map;
 	RPCModule *modules[SRPC_MODULE_MAX] = { NULL };
 };
 
@@ -89,9 +95,10 @@ inline RPCServer<RPCTYPE>::RPCServer(const struct RPCServerParams *params,
 {}
 
 template<class RPCTYPE>
-inline int RPCServer<RPCTYPE>::add_service(RPCService* service)
+inline int RPCServer<RPCTYPE>::add_service(RPCService *service)
 {
-	const auto it = this->service_map.emplace(service->get_name(), service);
+	const std::string &name = service->get_name();
+	const auto it = this->service_map.emplace(name, service);
 
 	if (!it.second)
 	{
@@ -103,7 +110,7 @@ inline int RPCServer<RPCTYPE>::add_service(RPCService* service)
 }
 
 template<>
-inline int RPCServer<RPCTYPESRPC>::add_service(RPCService* service)
+inline int RPCServer<RPCTYPESRPC>::add_service(RPCService *service)
 {
 	const std::string &name = service->get_name();
 	const auto it = this->service_map.emplace(name, service);
@@ -122,7 +129,7 @@ inline int RPCServer<RPCTYPESRPC>::add_service(RPCService* service)
 }
 
 template<>
-inline int RPCServer<RPCTYPESRPCHttp>::add_service(RPCService* service)
+inline int RPCServer<RPCTYPESRPCHttp>::add_service(RPCService *service)
 {
 	const std::string &name = service->get_name();
 	const auto it = this->service_map.emplace(name, service);
@@ -138,6 +145,43 @@ inline int RPCServer<RPCTYPESRPCHttp>::add_service(RPCService* service)
 		this->service_map.emplace(name.substr(pos + 1), service);
 
 	return 0;
+}
+
+template<class RPCTYPE>
+inline int RPCServer<RPCTYPE>::add_service(RPCService *service,
+										   const char *trans_coding)
+{
+	const json_value_t *val;
+	const json_object_t *obj;
+	const char *k;
+	const json_value_t *v;
+	std::string str;
+
+	val = json_value_parse(trans_coding);
+	if (val && json_value_type(val) == JSON_VALUE_OBJECT)
+	{
+		obj = json_value_object(val);
+		json_object_for_each(k, v, obj)
+		{
+			if (json_value_type(v) == JSON_VALUE_STRING)
+			{
+				str = "/" + service->get_name() + "/" + json_value_string(v);
+				this->path_map.emplace(k, str);
+			}
+			else
+			{
+				errno = EINVAL;
+				return -1;
+			}
+		}
+	}
+	else
+	{
+		errno = EINVAL;
+		return -1;
+	}
+
+	return add_service(service);
 }
 
 template<class RPCTYPE>
@@ -215,7 +259,7 @@ inline CommSession *RPCServer<RPCTYPE>::new_session(long long seq,
 }
 
 template<class RPCTYPE>
-void RPCServer<RPCTYPE>::server_process(NETWORKTASK *task) const
+void RPCServer<RPCTYPE>::server_process_internal(NETWORKTASK *task) const
 {
 	auto *req = task->get_req();
 	auto *resp = task->get_resp();
@@ -271,6 +315,24 @@ void RPCServer<RPCTYPE>::server_process(NETWORKTASK *task) const
 	} while (0);
 
 	resp->set_status_code(status_code);
+}
+
+template<class RPCTYPE>
+void RPCServer<RPCTYPE>::server_process(NETWORKTASK *task) const
+{
+	return this->server_process_internal(task);
+}
+
+template<>
+void RPCServer<RPCTYPESRPCHttp>::server_process(NETWORKTASK *task) const
+{
+	auto *req = task->get_req();
+
+	const auto it = this->path_map.find(req->get_request_uri());
+	if (it != this->path_map.cend())
+		req->set_request_uri(it->second);
+
+	return this->server_process_internal(task);
 }
 
 template<>
