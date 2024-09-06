@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <workflow/WFServer.h>
 #include <workflow/WFHttpServer.h>
-#include <workflow/json_parser.h>
+#include "rpc_basic.h"
 #include "rpc_types.h"
 #include "rpc_service.h"
 #include "rpc_options.h"
@@ -50,7 +50,7 @@ public:
 	RPCServer(const struct RPCServerParams *params);
 
 	int add_service(RPCService *service);
-	int add_service(RPCService *service, const char *trans_coding);
+	int add_service(RPCService *service, const std::string& trans_coding);
 	const RPCService* find_service(const std::string& name) const;
 	void add_filter(RPCFilter *filter);
 
@@ -149,39 +149,21 @@ inline int RPCServer<RPCTYPESRPCHttp>::add_service(RPCService *service)
 
 template<class RPCTYPE>
 inline int RPCServer<RPCTYPE>::add_service(RPCService *service,
-										   const char *trans_coding)
+										   const std::string &trans_coding)
 {
-	const json_value_t *val;
-	const json_object_t *obj;
-	const char *k;
-	const json_value_t *v;
+	std::map<std::string, std::string> kv_map;
 	std::string str;
 
-	val = json_value_parse(trans_coding);
-	if (val && json_value_type(val) == JSON_VALUE_OBJECT)
-	{
-		obj = json_value_object(val);
-		json_object_for_each(k, v, obj)
-		{
-			if (json_value_type(v) == JSON_VALUE_STRING)
-			{
-				str = "/" + service->get_name() + "/" + json_value_string(v);
-				this->path_map.emplace(k, str);
-			}
-			else
-			{
-				errno = EINVAL;
-				return -1;
-			}
-		}
-	}
-	else
-	{
-		errno = EINVAL;
+	if (!RPCCommon::json_to_map(trans_coding, kv_map))
 		return -1;
+
+	for (const auto &kv : kv_map)
+	{
+		str = "/" + service->get_name() + "/" + kv.second;
+		this->path_map.emplace(std::move(kv.first), std::move(str));
 	}
 
-	return add_service(service);
+	return this->add_service(service);
 }
 
 template<class RPCTYPE>

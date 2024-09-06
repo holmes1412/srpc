@@ -49,8 +49,15 @@ int main()
 	SRPCHttpServer server;
 	ExampleServiceImpl impl;
 
-	server.add_service(&impl, "{ \"/test/echo\": \"Echo\","
-							  "\"/no/method/for/test\": \"Test\" }");
+	std::string trans_coding = R"(
+{
+	"/test/echo"          : "Echo",
+	"/another/for/echo"   : "Echo",
+	"/no/method/for/test" : "Test"
+}
+)";
+
+	server.add_service(&impl, trans_coding);
 
 	if (server.start(1412) == 0)
 	{

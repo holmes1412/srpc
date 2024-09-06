@@ -79,7 +79,7 @@ protected:
 	std::string service_name;
 
 private:
-	void __task_init(COMPLEXTASK *task) const;
+	void task_init_internal(COMPLEXTASK *task) const;
 
 protected:
 	RPCClientParams params;
@@ -199,7 +199,7 @@ inline void RPCClient<RPCTYPE>::init(const RPCClientParams *params)
 }
 
 template<class RPCTYPE>
-inline void RPCClient<RPCTYPE>::__task_init(COMPLEXTASK *task) const
+inline void RPCClient<RPCTYPE>::task_init_internal(COMPLEXTASK *task) const
 {
 	if (this->has_addr_info)
 	{
@@ -216,7 +216,7 @@ inline void RPCClient<RPCTYPE>::__task_init(COMPLEXTASK *task) const
 template<class RPCTYPE>
 inline void RPCClient<RPCTYPE>::task_init(COMPLEXTASK *task) const
 {
-	__task_init(task);
+	this->task_init_internal(task);
 }
 
 static inline void __set_host_by_uri(const ParsedURI *uri, bool is_ssl,
@@ -271,7 +271,7 @@ inline void RPCClient<RPCTYPESRPCHttp>::task_init(COMPLEXTASK *task) const
 	std::string header_host;
 	std::string request_uri;
 
-	__task_init(task);
+	this->task_init_internal(task);
 
 	if (this->has_addr_info)
 		header_host += this->params.host + ":" + std::to_string(this->params.port);
@@ -289,7 +289,7 @@ inline void RPCClient<RPCTYPEThriftHttp>::task_init(COMPLEXTASK *task) const
 {
 	std::string header_host;
 
-	__task_init(task);
+	this->task_init_internal(task);
 
 	if (this->has_addr_info)
 		header_host += this->params.host + ":" + std::to_string(this->params.port);
