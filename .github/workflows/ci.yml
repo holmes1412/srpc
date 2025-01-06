@@ -79,5 +79,5 @@ jobs:
         sudo apt-get install -y bazel-5.4.0
 
     - name: bazel build
-      run: bazel build ...
+      run: bazel build --noenable_bzlmod ...
 
