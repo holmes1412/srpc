@@ -79,7 +79,7 @@ static inline uint64_t ntohll(uint64_t x)
 #define SRPC_JSON_OPTION_ADD_WHITESPACE		(1<<3)
 #define SRPC_JSON_OPTION_ENUM_AS_INITS		(1<<4)
 #define SRPC_JSON_OPTION_PRESERVE_NAMES		(1<<5)
-#define SRPC_JSON_OPTION_PRINT_PRIMITIVE	(1<<6)
+#define SRPC_JSON_OPTION_FIELDS_NO_PRECENCE	(1<<6)
 
 using ProtobufIDLMessage = google::protobuf::Message;
 using RPCLogVector = std::vector<std::pair<std::string, std::string>>;
@@ -179,14 +179,16 @@ static inline unsigned long long GET_CURRENT_NS()
 static inline void TRACE_ID_BIN_TO_HEX(const uint64_t trace_id[2],
 									   char hex[SRPC_TRACEID_SIZE * 2 + 1])
 {
-	sprintf(hex, "%016llx%016llx", (unsigned long long)ntohll(trace_id[0]),
-								   (unsigned long long)ntohll(trace_id[1]));
+	snprintf(hex, SRPC_TRACEID_SIZE * 2 + 1, "%016llx%016llx",
+			 (unsigned long long)ntohll(trace_id[0]),
+			 (unsigned long long)ntohll(trace_id[1]));
 }
 
 static inline void SPAN_ID_BIN_TO_HEX(const uint64_t span_id[1],
 									  char hex[SRPC_SPANID_SIZE * 2 + 1])
 {
-	sprintf(hex, "%016llx", (unsigned long long)ntohll(span_id[0]));
+	snprintf(hex, SRPC_SPANID_SIZE * 2 + 1, "%016llx",
+			 (unsigned long long)ntohll(span_id[0]));
 }
 
 static inline void TRACE_ID_HEX_TO_BIN(const char hex[SRPC_TRACEID_SIZE * 2 + 1],
